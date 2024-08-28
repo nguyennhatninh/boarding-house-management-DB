@@ -4,30 +4,42 @@
 
 [<img alt="Boarding House Management" src="https://raw.githubusercontent.com/nguyennhatninh/boarding-house-management-DB/main/drawSQL-image-export-2024-08-26.png" >](https://raw.githubusercontent.com/nguyennhatninh/boarding-house-management-DB/main/drawSQL-image-export-2024-08-26.png)
   
+
+### 1. List all boarding houses along with their owners (lessors) and their verification status. Sort the boarding houses by price in descending order.
+
+##### way1: 
 ```sql
-1. List all boarding houses along with their owners (lessors) and their verification status. Sort the boarding houses by price in descending order.
-
-way1: 
-select * from boarding_houses 
-where boarding_houses.lessor_id in 
-( select lessors.id from lessors where verify_ownership = true )
-order by boarding_houses.price desc
-
-way2:
-select * from boarding_houses 
-where exists
-( select lessors.id from lessors where lessors.verify_ownership = true 
-and boarding_houses.lessor_id = lessors.id )
-order by boarding_houses.price desc
-
-way3: 
-select * from boarding_houses 
-join lessors on boarding_houses.lessor_id = lessors.id 
-where lessors.verify_ownership = true
-order by boarding_houses.price desc
-
-2. Find the renter who has the highest total number of contracts and list the details of their contracts (including the boarding house and lessor information).
-
+SELECT * 
+FROM boarding_houses
+WHERE boarding_houses.lessor_id IN (
+    SELECT lessors.id 
+    FROM lessors 
+    WHERE verify_ownership = true
+)
+ORDER BY boarding_houses.price DESC;
+```
+##### way2:
+```sql
+SELECT * 
+FROM boarding_houses 
+WHERE EXISTS (
+    SELECT lessors.id 
+    FROM lessors 
+    WHERE lessors.verify_ownership = TRUE 
+      AND boarding_houses.lessor_id = lessors.id
+) 
+ORDER BY boarding_houses.price DESC;
+```
+##### way3: 
+```sql
+SELECT *
+FROM boarding_houses
+JOIN lessors ON boarding_houses.lessor_id = lessors.id
+WHERE lessors.verify_ownership = true
+ORDER BY boarding_houses.price DESC;
+```
+### 2. Find the renter who has the highest total number of contracts and list the details of their contracts (including the boarding house and lessor information).
+```sql
 WITH RenterContractCounts AS (
     SELECT 
         renter_id, 
@@ -60,36 +72,50 @@ WHERE
     RenterContractCounts.contract_count = (
         SELECT MAX(contract_count) FROM RenterContractCounts
     );
+```
+### 3. List boarding houses that are fully booked (capacity is at max) along with their categories and the total number of comments. Only show boarding houses with 5 or more comments.
+```sql
+SELECT 
+    boarding_houses.id, 
+    boarding_houses.category, 
+    boarding_houses.capacity, 
+    COUNT(comments.rate) AS count_comment
+FROM 
+    public.comments
+JOIN 
+    contracts ON comments.contract_id = contracts.id
+JOIN
+    boarding_houses ON contracts.boarding_house_id = boarding_houses.id
+GROUP BY 
+    boarding_houses.id 
+HAVING 
+    COUNT(comments.rate) >= 5;
+```
+### 4. Query the list of lessors and the number of boarding houses they own, sorted by the number of boarding houses in descending order, showing only lessors with more than 3 properties.
+```sql
+SELECT 
+    users.id, 
+    CONCAT(users.first_name, ' ', users.last_name) AS lessor_name,
+    users.phone, 
+    lessors.verify_ownership,
+    COUNT(boarding_houses.lessor_id) AS count_house
+FROM 
+    public.boarding_houses
+JOIN 
+    lessors ON boarding_houses.lessor_id = lessors.id
+JOIN 
+    users ON lessors.user_id = users.id
+GROUP BY 
+    users.id, 
+    lessors.id
+HAVING 
+    COUNT(boarding_houses.lessor_id) >= 3
+ORDER BY 
+    COUNT(boarding_houses.lessor_id) DESC;
 
-3. List boarding houses that are fully booked (capacity is at max) along with their categories and the total number of comments. Only show boarding houses with 5 or more comments.
-
-select boarding_houses.id, boarding_houses.category, boarding_houses.capacity, count(comments.rate) as count_comment 
-from public.comments
-join 
-	contracts on comments.contract_id = contracts.id
-join
-	boarding_houses on contracts.boarding_house_id = boarding_houses.id
-group by boarding_houses.id 
-having count(comments.rate) >= 5
-;
-
-4. Query the list of lessors and the number of boarding houses they own, sorted by the number of boarding houses in descending order, showing only lessors with more than 3 properties.
-
-select users.id, 
-CONCAT(users.first_name, ' ', users.last_name) AS lessor_name
-, users.phone, lessors.verify_ownership ,
-count(boarding_houses.lessor_id) as count_house 
-from public.boarding_houses
-join
-	lessors on boarding_houses.lessor_id = lessors.id
-join
-	users on lessors.user_id = users.id
-group by users.id, lessors.id having count(boarding_houses.lessor_id) >= 3
-order by count(boarding_houses.lessor_id) desc
-;
-
-5. List all contracts from the most recent month, along with the renter’s name, the total number of payments made for each contract, and the contract details. Sort the results by contract end date.
-
+```
+### 5. List all contracts from the most recent month, along with the renter’s name, the total number of payments made for each contract, and the contract details. Sort the results by contract end date.
+```sql
 SELECT 
     contracts.id,
     contracts.date_start,
@@ -112,9 +138,9 @@ GROUP BY
     contracts.id,renter_name, contracts.date_start, contracts.date_end
 ORDER BY 
     contracts.date_end;
-
-6. Find the boarding houses that have a price higher than the average price of all boarding houses in their category. List the boarding house name, price, and category.
-
+```
+### 6. Find the boarding houses that have a price higher than the average price of all boarding houses in their category. List the boarding house name, price, and category.
+```sql
 SELECT 
     b.name AS boarding_house_name,
     b.price,
@@ -133,8 +159,9 @@ ON
     b.category = c.category
 WHERE 
     b.price > c.avg_price;
-
-7. List all lessors and the number of payments received from renters. Show only lessors who have received more than 10 payments and sort by the total number of payments in descending order.
+```
+### 7. List all lessors and the number of payments received from renters. Show only lessors who have received more than 10 payments and sort by the total number of payments in descending order.
+```sql
 SELECT 
     lessors.id, 
     CONCAT(users.first_name, ' ', users.last_name) AS lessor_name, 
@@ -154,8 +181,9 @@ HAVING
     COUNT(lessors.id) >= 10
 ORDER BY 
     total_payment_received DESC;
-8. List renters who have marked at least 2 boarding houses as favorites and have at least 1 ongoing contract. Display their email, total number of favorite boarding houses, and the number of active contracts.
-
+    ```
+### 8. List renters who have marked at least 2 boarding houses as favorites and have at least 1 ongoing contract. Display their email, total number of favorite boarding houses, and the number of active contracts.
+```sql
 SELECT 
     users.email, 
     COUNT(DISTINCT favorites.boarding_house_id) AS count_house_favorite,
@@ -176,9 +204,9 @@ HAVING
     COUNT(DISTINCT favorites.boarding_house_id) >= 2 
 AND 
     COUNT(DISTINCT contracts.id) >= 1;
-
-9. List all renter comments along with the boarding house name, contract content, and rating. Only show boarding houses with an average rating above 4, and sort the results by the average rating in descending order.
-
+```
+### 9. List all renter comments along with the boarding house name, contract content, and rating. Only show boarding houses with an average rating above 4, and sort the results by the average rating in descending order.
+```sql
 WITH AvgRatings AS (
     SELECT 
         contracts.boarding_house_id, 
@@ -209,10 +237,10 @@ WHERE
     AvgRatings.avg_rate IS NOT NULL
 ORDER BY 
     AvgRatings.avg_rate DESC;
+```
 
-
-10. Find users (both renters and lessors) who have never sent a message in any chat. List their details along with their roles and creation dates.
-
+### 10. Find users (both renters and lessors) who have never sent a message in any chat. List their details along with their roles and creation dates.
+```sql
 SELECT 
     users.id ,
     CONCAT(users.first_name ,' ', users.last_name ) as user_name,
@@ -224,9 +252,9 @@ LEFT JOIN
     messages ON users.id = messages.user_id
 WHERE 
     messages.id IS NULL;
-
-11. List all contracts with status 'completed', along with boarding house information, renter details, and the total number of payments made for each contract. Sort by the total number of payments in descending order.
-
+```
+### 11. List all contracts with status 'completed', along with boarding house information, renter details, and the total number of payments made for each contract. Sort by the total number of payments in descending order.
+```sql
 SELECT 
     payments.status ,
 	CONCAT(users.first_name ,' ', users.last_name ) as renter_name,
@@ -245,9 +273,9 @@ JOIN
 WHERE 
     payments.status = 'paid'
 ORDER BY boarding_houses.price DESC
-
-12. Query the list of boarding houses along with their lessors and the total number of comments they have received. Only show boarding houses with 3 or more comments and sort by the number of comments in descending order.
-
+```
+### 12. Query the list of boarding houses along with their lessors and the total number of comments they have received. Only show boarding houses with 3 or more comments and sort by the number of comments in descending order.
+```sql
 SELECT 
     boarding_houses.id, 
     boarding_houses.name, 
@@ -269,9 +297,9 @@ HAVING
     COUNT(comments.id) >= 3
 ORDER BY 
     total_comments DESC;
-
-13. List renter names and the total amount they have paid in payments for contracts related to boarding houses located in a specific city, sorted by the total amount paid in descending order.
-
+```
+### 13. List renter names and the total amount they have paid in payments for contracts related to boarding houses located in a specific city, sorted by the total amount paid in descending order.
+```sql
 SELECT 
     renters.id,
     CONCAT(users.first_name, ' ', users.last_name) AS renter_name,
@@ -291,9 +319,9 @@ GROUP BY
 ORDER BY 
     total_payments DESC;
 
-
-14. Find boarding houses with a rating higher than the average rating of all boarding houses in the same category. List the boarding house name, rating, and category.
-
+```
+### 14. Find boarding houses with a rating higher than the average rating of all boarding houses in the same category. List the boarding house name, rating, and category.
+```sql
 SELECT 
     boarding_houses.name,
     boarding_houses.rate,
@@ -312,10 +340,10 @@ ON
     boarding_houses.category = avg_ratings.category
 WHERE 
     boarding_houses.rate > avg_ratings.avg_rating;
+```
 
-
-15. List all chats and the messages within each chat, along with the details of the users who sent the messages. Only display chats with at least 2 participants and sort by chat title.
-
+### 15. List all chats and the messages within each chat, along with the details of the users who sent the messages. Only display chats with at least 2 participants and sort by chat title.
+```sql
 SELECT 
     chats.title,
     messages.content,
