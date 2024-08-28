@@ -161,6 +161,7 @@ WHERE
     b.price > c.avg_price;
 ```
 ### 7. List all lessors and the number of payments received from renters. Show only lessors who have received more than 10 payments and sort by the total number of payments in descending order.
+
 ```sql
 SELECT 
     lessors.id, 
@@ -181,8 +182,9 @@ HAVING
     COUNT(lessors.id) >= 10
 ORDER BY 
     total_payment_received DESC;
-    ```
-### 8. List renters who have marked at least 2 boarding houses as favorites and have at least 1 ongoing contract. Display their email, total number of favorite boarding houses, and the number of active contracts.
+```
+### 8.List renters who have marked at least 2 boarding houses as favorites and have at least 1 ongoing contract. Display their email, total number of favorite boarding houses, and the number of active contracts.
+
 ```sql
 SELECT 
     users.email, 
